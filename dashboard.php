@@ -1,194 +1,201 @@
 <?php
+require 'config.php';
 session_start();
-if (!isset($_SESSION['user'])) {
-    header("Location: login.php");
+
+$user = $_SESSION['user'] ?? null;
+
+if (!$user || !isset($user['roll_no'])) {
+    echo "<p>You are not logged in. <a href='login.php'>Login</a></p>";
     exit();
 }
-$user = $_SESSION['user'];
+
+$roll_no = $user['roll_no'];
+
+// Using PDO-style query to fetch student data
+$stmt = $conn->prepare("SELECT * FROM student_records WHERE roll_no = :roll_no");
+$stmt->execute([':roll_no' => $roll_no]);
+$student = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$student) {
+    echo "<p>No record found.</p>";
+    exit();
+}
+
+function displayRow($label, $value) {
+    echo "<tr><td><strong>$label</strong></td><td>" . htmlspecialchars($value) . "</td></tr>";
+}
+
+function displayFile($label, $path) {
+    if ($path) {
+        $filename = basename($path);
+        echo "<tr><td><strong>$label</strong></td><td>
+            <a href='$path' target='_blank'>$filename</a><br>
+            <img src='$path' alt='$label' style='height:80px; margin-top:5px; border-radius:5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);'>
+        </td></tr>";
+    }
+}
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Student Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        * {
-            box-sizing: border-box;
-        }
         body {
-            margin: 0;
             font-family: 'Segoe UI', sans-serif;
-            background-color: #f4f6fa;
-        }
-        .header {
-            background-color: #0d3c78;
-            color: white;
-            padding: 20px 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 {
+            background: #f1f3f6;
             margin: 0;
-            font-size: 24px;
-        }
-        .dashboard-container {
-            max-width: 1200px;
-            margin: 40px auto;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            display: flex;
-            flex-wrap: wrap;
-            overflow: hidden;
-        }
-        .profile-left {
-            flex: 1;
-            min-width: 300px;
-            padding: 40px;
-            background: #ffffff;
-            text-align: center;
-            border-right: 1px solid #e5e5e5;
-        }
-        .profile-left img {
-            border-radius: 50%;
-            width: 140px;
-            height: 140px;
-            object-fit: cover;
-            border: 4px solid #0d3c78;
-        }
-        .profile-left h2 {
-            margin: 15px 0 5px;
-        }
-        .profile-left p {
-            font-size: 14px;
-            color: #666;
-        }
-        .profile-right {
-            flex: 2;
-            padding: 40px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 25px;
-        }
-        .profile-item {
-            background-color: #f7f9fc;
-            padding: 15px 20px;
-            border-left: 4px solid #0d3c78;
-            border-radius: 8px;
-        }
-        .profile-item strong {
-            display: block;
+            padding: 20px;
             color: #333;
-            font-size: 14px;
         }
-        .profile-item span {
-            font-size: 15px;
-            color: #555;
+        .container {
+            max-width: 960px;
+            margin: auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+            overflow: hidden;
+            padding: 30px;
         }
-        .full-width {
-            grid-column: 1 / 3;
-        }
-        .photo-mini {
-            margin-top: 10px;
-            width: 100px;
-            border-radius: 8px;
-        }
-        .btn-container {
-            margin-top: 20px;
+        h2 {
             text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
         }
-        .btn {
-            display: inline-block;
-            margin: 5px;
-            padding: 10px 20px;
+        .section {
+            margin-bottom: 40px;
+        }
+        .section h3 {
+            margin: 0;
             background: #0d3c78;
             color: white;
-            border: none;
-            border-radius: 6px;
+            padding: 12px 20px;
+            border-radius: 6px 6px 0 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        td {
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+        }
+        .buttons a {
             text-decoration: none;
-            transition: 0.3s ease;
+            padding: 12px 24px;
+            font-weight: bold;
+            border-radius: 8px;
+            background: linear-gradient(to right, #0d3c78, #2c5aa0);
+            color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
         }
-        .btn:hover {
-            background: #094291;
+        .buttons a:hover {
+            background: linear-gradient(to right, #1e5799, #2980b9);
+            transform: translateY(-2px);
         }
-        a {
-            color: #0d3c78;
+        img {
+            max-height: 100px;
+            border-radius: 8px;
+        }
+        @media (max-width: 600px) {
+            .buttons {
+                flex-direction: column;
+                gap: 15px;
+            }
+            td {
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>ECAMPUS</h1>
-    <div>K</div>
-</div>
+<div class="container">
+    <h2>Welcome, <?= htmlspecialchars($student['name']) ?> (<?= htmlspecialchars($student['roll_no']) ?>)</h2>
 
-<div class="dashboard-container">
-    <div class="profile-left">
-        <img src="<?= htmlspecialchars($user['photo']) ?>" alt="Profile">
-        <h2><?= htmlspecialchars($user['name']) ?></h2>
-        <p>DIPLOMA INFORMATION TECHNOLOGY</p>
+    <!-- Personal Details -->
+    <div class="section">
+        <h3>Personal Details</h3>
+        <table>
+            <?php
+            displayRow("Name", $student['name']);
+            displayRow("Roll No", $student['roll_no']);
+            displayRow("Aadhaar", $student['aadhaar']);
+            displayRow("Email", $student['email']);
+            displayRow("DOB", $student['dob']);
+            displayRow("Religion", $student['religion']);
+            displayRow("Community", $student['community']);
+            displayRow("Blood Group", $student['blood_group']);
+            displayRow("Differently Abled", $student['abled']);
+            displayRow("Father's Name", $student['father_name']);
+            displayRow("Mother's Name", $student['mother_name']);
+            displayFile("Student Photo", $student['student_photo']);
+            displayFile("Father Photo", $student['father_photo']);
+            displayFile("Mother Photo", $student['mother_photo']);
+            ?>
+        </table>
     </div>
 
-    <div class="profile-right">
-        <div class="profile-item"><strong>Roll No</strong><span><?= $user['roll_no'] ?></span></div>
-        <div class="profile-item"><strong>Batch</strong><span>2023</span></div>
-        <div class="profile-item"><strong>Email</strong><span><?= $user['email'] ?></span></div>
-        <div class="profile-item"><strong>Phone</strong><span><?= $user['student_phone'] ?></span></div>
-        <div class="profile-item"><strong>Emergency Contact</strong><span><?= $user['father_phone'] ?></span></div>
-        <div class="profile-item"><strong>Semester</strong><span>5</span></div>
-        <div class="profile-item"><strong>Father</strong><span><?= $user['father_name'] ?></span></div>
-        <div class="profile-item"><strong>Mother</strong><span><?= $user['mother_name'] ?></span></div>
-        <div class="profile-item"><strong>DOB</strong><span><?= $user['dob'] ?></span></div>
-        <div class="profile-item"><strong>Gender</strong><span><?= $user['gender'] ?></span></div>
-        <div class="profile-item"><strong>CGPA</strong><span><?= $user['cgpa'] ?></span></div>
-        <div class="profile-item"><strong>10th Mark</strong><span><?= $user['mark_10'] ?></span></div>
-        <div class="profile-item"><strong>12th Mark</strong><span><?= $user['mark_12'] ?: 'Not Provided' ?></span></div>
-        <div class="profile-item"><strong>Aadhar</strong><span><?= $user['aadhar_no'] ?></span></div>
-        <div class="profile-item"><strong>Father's Occupation</strong><span><?= $user['father_occupation'] ?></span></div>
-        <div class="profile-item"><strong>Mother's Occupation</strong><span><?= $user['mother_occupation'] ?></span></div>
-        <div class="profile-item"><strong>Father's Salary</strong><span>₹<?= $user['father_salary'] ?></span></div>
-        <div class="profile-item"><strong>Mother's Salary</strong><span>₹<?= $user['mother_salary'] ?></span></div>
-        <div class="profile-item"><strong>Annual Income</strong><span>₹<?= $user['annual_income'] ?></span></div>
-        <div class="profile-item full-width"><strong>Address</strong><span><?= nl2br(htmlspecialchars($user['address'])) ?></span></div>
-
-        <?php if ($user['father_photo']): ?>
-            <div class="profile-item"><strong>Father's Photo</strong><br>
-                <img src="<?= $user['father_photo'] ?>" class="photo-mini">
-            </div>
-        <?php endif; ?>
-
-        <?php if ($user['mother_photo']): ?>
-            <div class="profile-item"><strong>Mother's Photo</strong><br>
-                <img src="<?= $user['mother_photo'] ?>" class="photo-mini">
-            </div>
-        <?php endif; ?>
-
-        <?php if ($user['community_certificate']): ?>
-            <div class="profile-item full-width">
-                <strong>Community Certificate</strong><br>
-                <a href="<?= $user['community_certificate'] ?>" target="_blank">View Document</a>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($user['marksheet_10']): ?>
-            <div class="profile-item"><strong>10th Marksheet</strong><br>
-                <a href="<?= $user['marksheet_10'] ?>" target="_blank">View Document</a>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($user['marksheet_12']): ?>
-            <div class="profile-item"><strong>12th Marksheet</strong><br>
-                <a href="<?= $user['marksheet_12'] ?>" target="_blank">View Document</a>
-            </div>
-        <?php endif; ?>
+    <!-- Contact Information -->
+    <div class="section">
+        <h3>Contact Information</h3>
+        <table>
+            <?php
+            displayRow("Address", $student['address']);
+            displayRow("PIN", $student['pin']);
+            displayRow("Change of Address", $student['address_change']);
+            displayRow("Student Mobile", $student['student_mobile']);
+            displayRow("Father Mobile", $student['father_mobile']);
+            displayRow("Mother Mobile", $student['mother_mobile']);
+            ?>
+        </table>
     </div>
-</div>
 
-<div class="btn-container">
-    <a href="update_profile_form.php" class="btn">Update Profile</a>
-    <a href="logout.php" class="btn">Logout</a>
+    <!-- Bank Details -->
+    <div class="section">
+        <h3>Bank Details</h3>
+        <table>
+            <?php
+            displayRow("Bank A/C", $student['bank_ac']);
+            displayRow("Bank Name", $student['bank_name']);
+            displayRow("IFSC Code", $student['ifsc']);
+            ?>
+        </table>
+    </div>
+
+    <!-- Study Details -->
+    <div class="section">
+        <h3>Study Details</h3>
+        <table>
+            <?php
+            displayRow("Branch", $student['branch']);
+            displayRow("EMIS ID", $student['emis_id']);
+            displayRow("UMIS ID", $student['umis_id']);
+            displayFile("10th Marksheet", $student['marksheet_10']);
+            displayFile("12th Marksheet", $student['marksheet_12']);
+            ?>
+        </table>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="buttons">
+        <a href="academic_dashboard.php">📘 Academic Dashboard</a>
+        <a href="update_profile_form.php">✏️ Update Profile</a>
+        <a href="logout.php">🔒 Logout</a>
+    </div>
 </div>
 
 </body>
